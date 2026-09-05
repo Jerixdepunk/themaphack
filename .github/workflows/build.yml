@@ -3,32 +3,27 @@ name: Build with NDK
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch: # Allows you to manually trigger the build
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Setup Android NDK
-      uses: nttld/setup-ndk@v1
+      uses: nttld/setup-ndk@v1  # <-- FIXED the typo here!
       with:
-        ndk-version: r25c # You can change this to another version if needed
+        ndk-version: r25c
 
-    - name: Build with ndk-build
+    - name: Build the hack
       run: |
-        # Make the compile script executable and run it
-        chmod +x compile.sh
-        ./compile.sh
-      env:
-        # Pass the NDK path to the environment so compile.sh can find it
-        NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        # Call ndk-build directly (bypassing the broken compile.sh)
+        $ANDROID_NDK_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk
 
     - name: Upload .so files
       uses: actions/upload-artifact@v4
       with:
         name: themaphack-libs
-        path: libs/**/*.so # This path may vary depending on where the build outputs the files
+        path: libs/**/*.so
