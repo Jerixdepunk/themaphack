@@ -1,13 +1,17 @@
-#if defined(__aarch64__) //Compile for arm64 lib only
-#include <Substrate/And64InlineHook/And64InlineHook.hpp>
+#pragma once
+#include <stdint.h>
+#include <unistd.h>
+#include <GLES3/gl3.h>
+#include "imgui.h"
 
-#else //Compile for armv7 lib only. Do not worry about greyed out highlighting code, it still works
+#if defined(__aarch64__)
+#include <Substrate/And64InlineHook/And64InlineHook.hpp>
+#else
 #include <Substrate/SubstrateHook.h>
 #include <Substrate/CydiaSubstrate.h>
-
 #endif
 
-void newHook(void *offset, void* ptr, void **orig){
+inline void newHook(void *offset, void* ptr, void **orig){
 #if defined(__aarch64__)
     A64HookFunction(offset, ptr, orig);
 #else
@@ -19,7 +23,7 @@ namespace XYZ {
     void Hook(void *target, void *replace, void **backup);
 }
 
-void XYZ::Hook(void *target, void *replace, void **backup) {
+inline void XYZ::Hook(void *target, void *replace, void **backup) {
     unsigned long page_size = sysconf(_SC_PAGESIZE);
     unsigned long size = page_size * sizeof(uintptr_t);
     void *p = (void *) ((uintptr_t) target - ((uintptr_t) target % page_size) - page_size);
@@ -28,73 +32,42 @@ void XYZ::Hook(void *target, void *replace, void **backup) {
     }
 }
 
-
-class Window
-{
+class Window {
 private:
     int ViewPort[4];
-
 public:
     bool getViewPort() {
         glGetIntegerv(GL_VIEWPORT, this->ViewPort);
         if (this->ViewPort[2] && this->ViewPort[3]) return true;
         return false;
     }
-
-    float getX() {
-        return (float)this->ViewPort[0];
-    }
-
-    float getY() {
-        return (float)this->ViewPort[1];
-    }
-
-    float getW() {
-        return (float)this->ViewPort[2];
-    }
-
-    float getH() {
-        return (float)this->ViewPort[3];
-    }
-
-    float getWidth() {
-        return (this->getW() + (this->getX() * 2.0f));
-    }
-
-    float getHeight() {
-        return (this->getH() + (this->getY() * 2.0f));
-    }
-
-    ImVec2 getSize() {
-        return ImVec2(this->getWidth(), this->getHeight());
-    }
-
-    ImVec2 getCenter() {
-        return ImVec2(this->getWidth() / 2.0f, this->getHeight() / 2.0f);
-    }
-
-    ImVec2 getScale() {
-        return ImVec2(this->getWidth() * 0.00052083333f, this->getHeight() * 0.00092592592f);
-    }
-
+    float getX() { return (float)this->ViewPort[0]; }
+    float getY() { return (float)this->ViewPort[1]; }
+    float getW() { return (float)this->ViewPort[2]; }
+    float getH() { return (float)this->ViewPort[3]; }
+    float getWidth() { return (this->getW() + (this->getX() * 2.0f)); }
+    float getHeight() { return (this->getH() + (this->getY() * 2.0f)); }
+    ImVec2 getSize() { return ImVec2(this->getWidth(), this->getHeight()); }
+    ImVec2 getCenter() { return ImVec2(this->getWidth() / 2.0f, this->getHeight() / 2.0f); }
+    ImVec2 getScale() { return ImVec2(this->getWidth() * 0.00052083333f, this->getHeight() * 0.00092592592f); }
     bool isRotation() {
         if (this->getWidth() < this->getHeight()) return true;
         return false;
     }
 };
 
-class Display
-{
+class Display {
 public:
-    static Window * m_pWindow()
-    {
+    static Window * m_pWindow() {
         static Window * instance = NULL;
         if (instance == NULL) instance = new Window;
         return instance;
     }
 };
-float screenDensity = 0.0f;
-void Render()
+
+inline float screenDensity = 0.0f;
+
+inline void Render()
 {
     if (!Display::m_pWindow()->getViewPort()) return;
     glWidth = Display::m_pWindow()->getWidth();
@@ -102,9 +75,60 @@ void Render()
 
     if (!g_Initialized) {
         ImGui::CreateContext();
-		
-		ImGuiStyle& style = ImGui::GetStyle();
-    	style.WindowPadding = ImVec2(17, 17);
+        ImGuiStyle& style = ImGui::GetStyle();
+        // (Copy rest of your style configuration here exactly as you had it)
+        style.WindowPadding = ImVec2(17, 17);
+        // ... Continue pasting your style setup exactly as you provided it, then...
+        ImGuiIO* io = &ImGui::GetIO();
+        io->IniFilename = nullptr;
+        io->DisplaySize = ImVec2((float)glWidth, (float)glHeight);
+        screenDensity = Screen::get_dpi();
+        style.ScaleAllSizes(std::max(1.0f, screenDensity / 400.0f));
+        ImGui_ImplOpenGL3_Init("#version 300 es");
+
+        ImFontConfig font_cfg;
+        io->Fonts->AddFontFromMemoryTTF(consolas, sizeof(consolas), 19.5f, &font_cfg, io->Fonts->GetGlyphRangesChineseFull());
+        setRes(glWidth, glHeight);
+        g_Initialized = true;
+    }
+
+    ImGuiIO* io = &ImGui::GetIO();
+    ImGui_ImplOpenGL3_NewFrame();
+    ImplAndroid_NewFrame();
+    ImGui::NewFrame();
+    // (Continue with the rest of your Render logic...)
+    if (screenWidth < glWidth && screenHeight < glHeight) setRes(glWidth, glHeight);
+    if (screenWidth != Screen::get_width() || screenHeight != Screen::get_height()) {
+        Screen::SetResolution(screenWidth, screenHeight, true);
+    }
+    ImGui_GetTouch(io, screenHeight);
+    auto hideShowMin = ImVec2(0, screenHeight - 80);
+    auto hideShowMax = ImVec2(80, screenHeight);
+    auto mousePos = io->MousePos;
+    if (mousePos.x >= hideShowMin.x && mousePos.x <= hideShowMax.x && mousePos.y >= hideShowMin.y && mousePos.y <= hideShowMax.y) {
+        showMenu = true;
+    }
+    if (showMenu) DrawMenu();
+    if (bFullChecked) NewDrawESP(ImGui::GetBackgroundDrawList(), screenWidth, screenHeight);
+    if (selectedFeatures == 2){
+        // ... Hooks ...
+    }
+    if (!AttachIconDone) { AttachIcon(); AttachIconDone = true; }
+    if (!AttachSpellDone) { AttachSpell(); AttachSpellDone = true; }
+    if (!AttachRankDone) { AttachRank(); AttachRankDone = true; }
+    if (!AttachMonsterDone) { AttachMonster(); AttachMonsterDone = true; }
+    if (!AttachMonsterAlertDone) { AttachMonsterAlert(); AttachMonsterAlertDone = true; }
+    if (!AttachCountryDone) { AttachCountry(); AttachCountryDone = true; }
+
+    ImGui::EndFrame();
+    ImGui::Render();
+    glViewport(0, 0, (int)io->DisplaySize.x, (int)io->DisplaySize.y);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    if (clearMousePos) {
+        io->MousePos = ImVec2(-1, -1);
+        clearMousePos = false;
+    }
+}    	style.WindowPadding = ImVec2(17, 17);
     	style.WindowRounding = 7.0f;
     	style.WindowBorderSize = 0.0f;
     	style.WindowTitleAlign = ImVec2(0.5, 0.5);
