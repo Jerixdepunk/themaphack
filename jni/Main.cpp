@@ -256,6 +256,161 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	//pthread_create(&t, NULL, bypassMemcmp, NULL);
 	//pthread_create(&t, nullptr, libentec, nullptr);
     return Call_JNI_OnLoad(vm, reserved);
+}#define FindLib "libil2cpp.so"
+#define FindLib "liblogic.so"
+#define FindLib "libunity.so"
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <unistd.h>
+
+bool PatchOffset(uintptr_t address, const void *buffer, size_t length) {
+	unsigned long page_size = sysconf(_SC_PAGESIZE);
+    unsigned long size = page_size * sizeof(uintptr_t);
+    return mprotect((void *)(address - (address % page_size) - page_size), (size_t) size, PROT_EXEC | PROT_READ | PROT_WRITE) == 0 && memcpy((void *)address, (void *)buffer, length) != 0;
+}
+
+bool IsVPNEnabled() {
+    JNIEnv *env;
+    g_vm->AttachCurrentThread(&env, 0);
+    jclass ctx = env->FindClass("android/content/Context");
+    jobject context = getJNIContext(env);
+    jmethodID service = env->GetMethodID(ctx, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    jstring str = env->NewStringUTF("connectivity");
+    jobject conn_service = env->CallObjectMethod(context, service, str);
+    env->DeleteLocalRef(str);
+    jclass connectivity = env->FindClass("android/net/ConnectivityManager");
+    jclass capabils = env->FindClass("android/net/NetworkCapabilities");
+    jmethodID has1 = env->GetMethodID(capabils, "hasCapability", "(I)Z");
+    jmethodID has = env->GetMethodID(capabils, "hasTransport", "(I)Z");
+    jmethodID getCapabil = env->GetMethodID(connectivity, "getNetworkCapabilities", "(Landroid/net/Network;)Landroid/net/NetworkCapabilities;");
+    jmethodID getActive = env->GetMethodID(connectivity, "getActiveNetwork", "()Landroid/net/Network;");
+    jobject activenetwork = env->CallObjectMethod(conn_service, getActive);
+    jobject activecapabilities = env->CallObjectMethod(conn_service, getCapabil, activenetwork);
+    jboolean hasvpn1 = env->CallBooleanMethod(activecapabilities, has, 4);
+    jboolean hasvpn2 = env->CallBooleanMethod(activecapabilities, has1, 4);
+    if (hasvpn1 || hasvpn2) {
+        env->DeleteLocalRef(activenetwork);
+        env->DeleteLocalRef(activecapabilities);
+        env->DeleteLocalRef(conn_service);
+        env->DeleteLocalRef(ctx);
+        env->DeleteLocalRef(context);
+        env->DeleteLocalRef(capabils);
+        env->DeleteLocalRef(connectivity);
+        return true;
+    } else {
+        env->DeleteLocalRef(activenetwork);
+        env->DeleteLocalRef(activecapabilities);
+        env->DeleteLocalRef(conn_service);
+        env->DeleteLocalRef(ctx);
+        env->DeleteLocalRef(context);
+        env->DeleteLocalRef(capabils);
+        env->DeleteLocalRef(connectivity);
+        return false;
+    }
+}
+
+
+bool FileExists(const std::string& filename) {
+    std::ifstream file(filename);
+    return file.good();
+}
+
+void eglSwapBuffers_handler(RegisterContext * ctx, const HookEntryInfo * info)
+{
+    static int count = 0;
+    if(count < 10){
+        count++;
+    }else{
+        Render();
+    }
+}
+
+void *bypassMemcmp(void *arg) {
+    void *handle = dlopen("libc.so", RTLD_LAZY);
+    if (!handle) return NULL;
+
+    void *memcmpAddr = dlsym(handle, "memcmp");
+    if (!memcmpAddr) return NULL;
+
+    uint8_t patch[] = { 0x01, 0x00, 0xA0, 0xE3 }; // MOV R0, #1 (Always return success)
+    mprotect((void *)((uintptr_t)memcmpAddr & ~0xFFF), 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC);
+    memcpy(memcmpAddr, patch, sizeof(patch));
+    return NULL;
+}
+
+void hideLibrary() {
+    //unlink("/proc/self/maps");
+    char path[64];
+    sprintf(path, "/proc/%d/maps", getpid());
+    unlink(path);
+}
+
+void *main_thread(void *) {
+    while (!m_IL2CPP) {
+        m_IL2CPP = Tools::GetBaseAddress("liblogic.so");
+        sleep(1);
+    }
+    LOGI("Initialized Logic");
+    
+    // ======================================================
+    // 🚀 FORCE UNLOCK ALL VIP FEATURES (No login required)
+    // ======================================================
+    inVip = "100";
+    // ======================================================
+
+    Il2CppAttach("liblogic.so");
+    sleep(5);
+
+	hideLibrary();
+	
+	DobbyInstrument(dlsym(RTLD_NEXT, "eglSwapBuffers"), eglSwapBuffers_handler);
+	
+	Tools::Hook((void *) AntiCheatReporter_StartBattle, (void *) iAntiCheatReporter_StartBattle, (void **) &oAntiCheatReporter_StartBattle);
+    Tools::Hook((void *) AntiCheatReporter_EndBattle, (void *) iAntiCheatReporter_StartBattle, (void **) &oAntiCheatReporter_StartBattle);
+    Tools::Hook((void *) AntiCheatReporter_OnReleaseUseSkill, (void *) iAntiCheatReporter_OnReleaseUseSkill, (void **) &oAntiCheatReporter_OnReleaseUseSkill);
+    Tools::Hook((void *) AntiCheatReporter_OnTryUseSkill, (void *) iAntiCheatReporter_OnTryUseSkill, (void **) &oAntiCheatReporter_OnTryUseSkill);
+    Tools::Hook((void *) AntiCheatReporter_OnTryUseSkill2, (void *) iAntiCheatReporter_OnTryUseSkill2, (void **) &oAntiCheatReporter_OnTryUseSkill2);
+    Tools::Hook((void *) AntiCheatReporter_OnRequestSkillMsg, (void *) iAntiCheatReporter_OnRequestSkillMsg, (void **) &oAntiCheatReporter_OnRequestSkillMsg);
+    Tools::Hook((void *) AntiCheatReporter_HasSkillInfo, (void *) iAntiCheatReporter_HasSkillInfo, (void **) &oAntiCheatReporter_HasSkillInfo);
+    
+	Tools::Hook((void *) ShowBattleControl_SetAntiCheatReport, (void *) iSetAntiCheatReport, (void **) &oSetAntiCheatReport);
+	
+    pthread_t t;
+    return 0;
+}
+
+void *g_Il2CppInitFunc, *g_Il2CppSymFunc;
+
+jint (JNICALL *Real_JNI_OnLoad)(JavaVM *vm, void *reserved);
+JNIEXPORT jint JNICALL Call_JNI_OnLoad(JavaVM *vm, void *reserved) {
+    std::string apkPkg = getPackageName(GetJNIEnv(g_vm));
+    std::string fromPath = std::string("/sdcard/Android/data/") + apkPkg.c_str() + std::string("/files/dragon2017/assets/comlibs/") + std::string(ARCH) + std::string("/libTMH.bytes");
+    std::string toPath = std::string("/data/user/0/") + apkPkg.c_str() + std::string("/app_libs/libTMH.bytes");
+ 
+    CopyFile(fromPath.c_str(), toPath.c_str());
+    if (!g_Il2CppInitFunc)g_Il2CppInitFunc = dlopen(toPath.c_str(), RTLD_LAZY);
+    if (!g_Il2CppInitFunc)g_Il2CppInitFunc = dlopen(fromPath.c_str(), RTLD_LAZY);
+        
+    if (!g_Il2CppSymFunc)g_Il2CppSymFunc = dlsym(g_Il2CppInitFunc, "JNI_OnLoad");
+    
+    auto AkLoad = (jint(*)(JavaVM *, void *))g_Il2CppSymFunc;
+    AkLoad(vm, nullptr);
+    
+    return JNI_VERSION_1_6;
+}
+
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
+    g_vm = vm;
+    JNIEnv *env;
+    if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK) {
+        return JNI_ERR;
+    }
+    pthread_t t;
+    pthread_create(&t, NULL, main_thread, nullptr);
+	//pthread_create(&t, NULL, bypassMemcmp, NULL);
+	//pthread_create(&t, nullptr, libentec, nullptr);
+    return Call_JNI_OnLoad(vm, reserved);
 	}#include <string>
 #include <unistd.h>
 
