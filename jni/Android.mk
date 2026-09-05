@@ -9,21 +9,16 @@ include $(PREBUILT_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE            := libcurl
 LOCAL_SRC_FILES         := Tools/Login/library/curl-android-$(TARGET_ARCH_ABI)/lib/libcurl.a
-
 include $(PREBUILT_STATIC_LIBRARY)
-# ============================================================================#
 
 include $(CLEAR_VARS)
 LOCAL_MODULE            := libssl
 LOCAL_SRC_FILES         := Tools/Login/library/openssl-android-$(TARGET_ARCH_ABI)/lib/libssl.a
-
 include $(PREBUILT_STATIC_LIBRARY)
-# ============================================================================#
 
 include $(CLEAR_VARS)
 LOCAL_MODULE            := libcrypto
 LOCAL_SRC_FILES         := Tools/Login/library/openssl-android-$(TARGET_ARCH_ABI)/lib/libcrypto.a
-
 include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -35,9 +30,10 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/Tools/Login/library/curl-android-$(TARGET_ARCH
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/Tools/Login/library/openssl-android-$(TARGET_ARCH_ABI)/include
 
 LOCAL_ARM_MODE := arm
+# -Werror removed
 LOCAL_CFLAGS += -w -s -Wno-error=format-security -fvisibility=hidden -fpermissive -fexceptions
-LOCAL_CPPFLAGS += -w -s -Wno-error=format-security -fvisibility=hidden -Werror -std=c++17
-LOCAL_CPPFLAGS += -Wno-error=c++11-narrowing -fpermissive -Wall -fexceptions -Werror
+LOCAL_CPPFLAGS += -w -s -Wno-error=format-security -fvisibility=hidden -std=c++17
+LOCAL_CPPFLAGS += -Wno-error=c++11-narrowing -fpermissive -Wall -fexceptions
 LOCAL_LDFLAGS += -Wl,-s -Wl,--gc-sections,--strip-all,-llog
 LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv2 -lGLESv3 -ldl -lz
 
