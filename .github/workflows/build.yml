@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: "main"
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       architecture:
@@ -17,14 +17,14 @@ on:
           - armeabi-v7a
 
 env:
-  NDK_VERSION: r25b  # NDK version that matches your project requirements
+  NDK_VERSION: r25b  # Stable NDK version that works with your project
   TARGET_ARCH: ${{ github.event.inputs.architecture || 'arm64-v8a' }}
   BUILD_TYPE: Release
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # Increased timeout for complex builds
 
     steps:
     - name: Checkout repository
@@ -58,29 +58,53 @@ jobs:
         mkdir -p libs/${TARGET_ARCH}
         mkdir -p obj/local/${TARGET_ARCH}
 
-    - name: Build with ndk-build
+    - name: Build with ndk-build (Debug Mode)
       run: |
-        # Run ndk-build from the jni directory
+        # Change to jni directory where Android.mk and Application.mk are located
         cd jni
+        
+        # Run ndk-build with verbose logging
         $ANDROID_NDK_HOME/ndk-build \
           NDK_PROJECT_PATH=. \
           APP_BUILD_SCRIPT=./Android.mk \
           NDK_APPLICATION_MK=./Application.mk \
           APP_ABI=${TARGET_ARCH} \
           APP_PLATFORM=android-21 \
-          APP_BUILD_TYPE=${BUILD_TYPE} \
+          APP_BUILD_TYPE=Debug \
           NDK_OUT=../obj/local/${TARGET_ARCH} \
-          NDK_LIBS_OUT=../libs/${TARGET_ARCH}
+          NDK_LIBS_OUT=../libs/${TARGET_ARCH} \
+          NDK_LOG=1 \
+          V=1
+
+    - name: Build with ndk-build (Release Mode)
+      run: |
+        # Change to jni directory where Android.mk and Application.mk are located
+        cd jni
+        
+        # Run ndk-build in release mode
+        $ANDROID_NDK_HOME/ndk-build \
+          NDK_PROJECT_PATH=. \
+          APP_BUILD_SCRIPT=./Android.mk \
+          NDK_APPLICATION_MK=./Application.mk \
+          APP_ABI=${TARGET_ARCH} \
+          APP_PLATFORM=android-21 \
+          APP_BUILD_TYPE=Release \
+          NDK_OUT=../obj/local/${TARGET_ARCH} \
+          NDK_LIBS_OUT=../libs/${TARGET_ARCH} \
+          V=1
 
     - name: Verify build artifacts
       run: |
         echo "Build artifacts in libs/${TARGET_ARCH}:"
         ls -la libs/${TARGET_ARCH}/
+        
         # Check if the main library was built
         if [ -f "libs/${TARGET_ARCH}/libAkSoundEngine2.so" ]; then
           echo "✅ Build successful! libAkSoundEngine2.so found."
         else
           echo "❌ Build failed! libAkSoundEngine2.so not found."
+          echo "Listing all files in libs directory:"
+          find libs/ -type f -name "*.so"
           exit 1
         fi
 
@@ -113,9 +137,9 @@ jobs:
           2. Copy to `Android/data/com.mobile.legends/files/dragon2017/assets/comlibs/${{ env.TARGET_ARCH }}/`
           3. Rename original `libAkSoundEngine.bytes` to `libTMH.bytes`
           4. Rename `libAkSoundEngine2.so` to `libAkSoundEngine.bytes`
-          5. Generate a key from [themaphack.com](https://themaphack.com) 【turn0search9】
+          5. Generate a key from [themaphack.com](https://themaphack.com) 【turn1search2】
           
           ### ⚠️ Warning
-          Your account is still not safe from bans. Follow the [safety guide](https://themaphack.com) before using 【turn0search9】.
+          Your account is still not safe from bans. Follow the [safety guide](https://themaphack.com) before using 【turn1search2】.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
