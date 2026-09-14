@@ -1,4 +1,4 @@
-name: Build Themaphack NDK
+name: Build Themaphack NDK (Diagnostic)
 
 on:
   push:
@@ -22,7 +22,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - name: Checkout repository
@@ -37,43 +37,104 @@ jobs:
         add-to-path: true
         local-cache: true
 
-    - name: Prepare build directories
+    - name: Debug - List all files in jni directory
+      run: |
+        echo "=== All files in jni directory ==="
+        find jni/ -type f -name "*.mk" -o -name "*.cpp" -o -name "*.h" -o -name "*.c" | sort
+        echo ""
+        echo "=== Directory structure ==="
+        find jni/ -type d | sort
+
+    - name: Debug - Check for duplicate definitions
+      run: |
+        echo "=== Checking for duplicate function definitions ==="
+        grep -n "void DrawMenu()" jni/DrawMenu.h | head -5
+        grep -n "inline ImColor GetColorWithAlpha" jni/DrawMenu.h | head -5
+        grep -n "inline ImVec2 center_text" jni/DrawMenu.h | head -5
+        
+        echo ""
+        echo "=== Checking for duplicate variable definitions ==="
+        grep -n "bool showMenu" jni/DrawMenu.h | head -5
+        grep -n "ImColor main_color" jni/DrawMenu.h | head -5
+        grep -n "ImFont\* icon_font" jni/DrawMenu.h | head -5
+
+    - name: Debug - Verify source files exist
+      run: |
+        echo "=== Checking source files referenced in Android.mk ==="
+        # Extract source files from Android.mk
+        grep -o 'LOCAL_SRC_FILES := .*' jni/Android.mk | sed 's/LOCAL_SRC_FILES := //' | tr ' ' '\n' | while read -r file; do
+          if [ -f "jni/$file" ]; then
+            echo "✅ Found: $file"
+          else
+            echo "❌ Missing: $file"
+          fi
+        done
+
+    - name: Debug - Show Android.mk content
+      run: |
+        echo "=== Android.mk content ==="
+        cat jni/Android.mk
+        echo ""
+        echo "=== Application.mk content ==="
+        cat jni/Application.mk
+
+    - name: Prepare build environment
       run: |
         mkdir -p libs/${TARGET_ARCH}
         mkdir -p obj/local/${TARGET_ARCH}
 
-    - name: Build with ndk-build
+    - name: Build with ndk-build (Maximum Verbosity)
       working-directory: .
       run: |
-        # Run ndk-build from the root directory. 
-        # It automatically detects the 'jni' folder and Android.mk inside it.
+        # Run ndk-build with maximum verbosity to see all errors
         $ANDROID_NDK_HOME/ndk-build \
           APP_ABI=${TARGET_ARCH} \
           NDK_PROJECT_PATH=. \
           NDK_OUT=./obj \
           NDK_LIBS_OUT=./libs \
-          NDK_DEBUG=0 \
-          V=1
+          NDK_DEBUG=1 \
+          V=1 \
+          NDK_LOG=1 \
+          2>&1 | tee build.log
+        
+        # Check if build succeeded
+        if [ ${PIPESTATUS[0]} -ne 0 ]; then
+          echo "❌ Build failed with exit code ${PIPESTATUS[0]}"
+          echo ""
+          echo "=== First 100 lines of build log ==="
+          head -100 build.log
+          echo ""
+          echo "=== Last 100 lines of build log ==="
+          tail -100 build.log
+          echo ""
+          echo "=== All error lines in build log ==="
+          grep -i "error:" build.log | head -20
+          exit 1
+        fi
 
     - name: Verify build artifacts
       run: |
-        echo "Searching for built libraries..."
+        echo "=== Searching for built libraries ==="
         find libs/ -type f -name "*.so" -exec ls -la {} \;
         
-        # Check specifically for libAkSoundEngine2.so
         if find libs/ -type f -name "libAkSoundEngine2.so" | grep -q "."; then
           echo "✅ Build successful! libAkSoundEngine2.so found."
         else
           echo "❌ Build failed! libAkSoundEngine2.so not found."
+          echo "=== All files in libs directory ==="
+          find libs/ -type f -exec ls -la {} \;
           exit 1
         fi
 
-    - name: Upload build artifacts
+    - name: Upload build artifacts and logs
       uses: actions/upload-artifact@v4
       with:
-        name: themaphack-${{ env.TARGET_ARCH }}
+        name: themaphack-${{ env.TARGET_ARCH }}-diagnostic
         path: |
-          libs/${{ env.TARGET_ARCH }}/
+          libs/
+          build.log
+          jni/Android.mk
+          jni/Application.mk
         retention-days: 30
 
     - name: Create GitHub Release (on main branch)
