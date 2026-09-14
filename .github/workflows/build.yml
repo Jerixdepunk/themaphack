@@ -1,0 +1,124 @@
+name: Build Themaphack Mod
+
+# Trigger the workflow on push to main branch, pull requests, and manual dispatch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: 'Target architecture (arm64-v8a or armeabi-v7a)'
+        required: true
+        default: 'arm64-v8a'
+        type: choice
+        options:
+          - arm64-v8a
+          - armeabi-v7a
+
+# Environment variables for the build
+env:
+  # NDK version to use (matches the one in releases)
+  NDK_VERSION: r25b
+  # Architecture to build for
+  TARGET_ARCH: ${{ github.event.inputs.architecture || 'arm64-v8a' }}
+  # Build type (Release or Debug)
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0  # Fetch all history for all branches and tags
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Download and setup Android NDK
+      run: |
+        # Download NDK package
+        wget https://github.com/android/ndk/wiki/wiki/${NDK_VERSION}-downloads.md
+        # Extract NDK
+        unzip -q ndk.zip
+        # Set NDK path
+        echo "ANDROID_NDK_HOME=$PWD/android-ndk-${NDK_VERSION}" >> $GITHUB_ENV
+        echo "ANDROID_NDK_ROOT=$PWD/android-ndk-${NDK_VERSION}" >> $GITHUB_ENV
+        # Add NDK to PATH
+        echo "$PWD/android-ndk-${NDK_VERSION}" >> $GITHUB_PATH
+
+    - name: Make compile.sh executable
+      run: chmod +x compile.sh
+
+    - name: Build project with ndk-build
+      run: |
+        # Create output directories
+        mkdir -p libs/${TARGET_ARCH}
+        mkdir -p obj/local/${TARGET_ARCH}
+        
+        # Run ndk-build with appropriate flags
+        $ANDROID_NDK_ROOT/ndk-build \
+          NDK_PROJECT_PATH=. \
+          APP_BUILD_SCRIPT=jni/Android.mk \
+          NDK_APPLICATION_MK=jni/Application.mk \
+          APP_ABI=${TARGET_ARCH} \
+          APP_PLATFORM=android-21 \
+          APP_BUILD_TYPE=${BUILD_TYPE} \
+          NDK_OUT=obj/local/${TARGET_ARCH} \
+          NDK_LIBS_OUT=libs/${TARGET_ARCH}
+
+    - name: Verify build artifacts
+      run: |
+        echo "Build artifacts in libs/${TARGET_ARCH}:"
+        ls -la libs/${TARGET_ARCH}/
+        # Check if the main library was built
+        if [ -f "libs/${TARGET_ARCH}/libAkSoundEngine2.so" ]; then
+          echo "✅ Build successful! libAkSoundEngine2.so found."
+        else
+          echo "❌ Build failed! libAkSoundEngine2.so not found."
+          exit 1
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: themaphack-${{ env.TARGET_ARCH }}-${{ github.sha }}
+        path: |
+          libs/${{ env.TARGET_ARCH }}/
+          obj/local/${{ env.TARGET_ARCH }}/
+        retention-days: 30
+
+    - name: Create GitHub Release (on main branch)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          libs/${{ env.TARGET_ARCH }}/libAkSoundEngine2.so
+        tag_name: v${{ github.run_number }}-${{ env.TARGET_ARCH }}
+        name: Release ${{ env.TARGET_ARCH }} ${{ github.run_number }}
+        body: |
+          ## Themaphack Build ${{ github.run_number }}
+          
+          **Architecture:** ${{ env.TARGET_ARCH }}
+          **Commit:** ${{ github.sha }}
+          **Date:** ${{ github.event.head_commit.timestamp }}
+          
+          ### Installation
+          1. Download the appropriate `libAkSoundEngine2.so` file
+          2. Copy to `Android/data/com.mobile.legends/files/dragon2017/assets/comlibs/${{ env.TARGET_ARCH }}/`
+          3. Rename original `libAkSoundEngine.bytes` to `libTMH.bytes`
+          4. Rename `libAkSoundEngine2.so` to `libAkSoundEngine.bytes`
+          5. Generate a key from [themaphack.com](https://themaphack.com) 【turn0search9】
+          
+          ### ⚠️ Warning
+          Your account is still not safe from bans. Follow the [safety guide](https://themaphack.com) before using 【turn0search9】.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
