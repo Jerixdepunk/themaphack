@@ -1,3 +1,4 @@
+#pragma once
 #ifndef __GLOSSHOOK_H__
 #define __GLOSSHOOK_H__
 

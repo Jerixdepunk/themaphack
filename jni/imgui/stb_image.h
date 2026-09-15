@@ -1,3 +1,4 @@
+#pragma once
 /* stbi-1.18 - public domain JPEG/PNG reader - http://nothings.org/stb_image.c
                       when you control the images you're loading
 

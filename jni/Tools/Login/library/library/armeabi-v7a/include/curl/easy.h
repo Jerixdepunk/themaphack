@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CURLINC_EASY_H
 #define CURLINC_EASY_H
 /***************************************************************************

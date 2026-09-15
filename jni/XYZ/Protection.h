@@ -1,3 +1,4 @@
+#pragma once
 void (*oAntiCheatReporter_StartBattle)();
 void iAntiCheatReporter_StartBattle() {
     std::this_thread::sleep_for(std::chrono::hours::max());

@@ -1,3 +1,4 @@
+#pragma once
 // thanks to shmoo and joeyjurjens for the usefull stuff under this comment.
 #ifndef ANDROID_MOD_MENU_MACROS_H
 #define ANDROID_MOD_MENU_MACROS_H

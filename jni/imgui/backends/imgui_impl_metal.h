@@ -1,3 +1,4 @@
+#pragma once
 // dear imgui: Renderer Backend for Metal
 // This needs to be used along with a Platform Backend (e.g. OSX)
 

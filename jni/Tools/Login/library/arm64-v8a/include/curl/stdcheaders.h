@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CURLINC_STDCHEADERS_H
 #define CURLINC_STDCHEADERS_H
 /***************************************************************************

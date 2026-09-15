@@ -1,3 +1,4 @@
+#pragma once
 // tinyformat.h
 // Copyright (C) 2011, Chris Foster [chris42f (at) gmail (d0t) com]
 //

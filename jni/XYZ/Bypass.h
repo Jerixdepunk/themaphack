@@ -1,3 +1,4 @@
+#pragma once
 void (*oAntiCheatReporter_StartBattle)(void *);
 void iAntiCheatReporter_StartBattle(void *thiz){
     while(true){

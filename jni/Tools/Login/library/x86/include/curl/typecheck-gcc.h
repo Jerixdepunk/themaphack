@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CURLINC_TYPECHECK_GCC_H
 #define CURLINC_TYPECHECK_GCC_H
 /***************************************************************************

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CURLINC_URLAPI_H
 #define CURLINC_URLAPI_H
 /***************************************************************************

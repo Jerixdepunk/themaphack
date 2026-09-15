@@ -1,3 +1,4 @@
+#pragma once
 // dear imgui: single-file wrapper include
 // We use this to validate compiling all *.cpp files in a same compilation unit.
 // Users of that technique (also called "Unity builds") can generally provide this themselves,

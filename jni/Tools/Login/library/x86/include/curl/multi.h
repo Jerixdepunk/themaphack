@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CURLINC_MULTI_H
 #define CURLINC_MULTI_H
 /***************************************************************************

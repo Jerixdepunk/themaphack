@@ -1,3 +1,4 @@
+#pragma once
 /*
  * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
  *

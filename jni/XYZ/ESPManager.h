@@ -1,3 +1,4 @@
+#pragma once
 
 void *myPlayer = NULL;
 struct enemy_t {
